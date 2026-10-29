@@ -92,53 +92,81 @@ const I=[
 ["🌙","Noite","Night","O Halloween acontece à noite, quando a escuridão faz tudo parecer mais misterioso. A palavra vem de All Hallows’ Eve, que quer dizer “véspera de Todos os Santos”."]
 ];
 const $=s=>document.querySelector(s);
-let S={drawn:[],round:0},role=null,view=null,db=null,user=null,ref=null,msg="",card=[],marks=new Set(),confirmNew=false;
+let S={drawn:[],round:0},role=null,view=null,msg="",card=[],marks=new Set(),confirmNew=false;
+let players=[];
 const app=$("#app");
 const rnd=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const store={get(){try{return JSON.parse(localStorage.getItem("bingo-card"))}catch(e){return null}},set(v){try{localStorage.setItem("bingo-card",JSON.stringify(v))}catch(e){}}};
 
+// Canal de comunicação em tempo real entre abas/janelas
+const channel = new BroadcastChannel('bingo_halloween_sync');
+
+channel.onmessage = (event) => {
+  if (event.data) {
+    if (event.data.type === 'STATE') {
+      S = event.data.state;
+      view = null;
+      paint();
+    } else if (event.data.type === 'PLAYERS') {
+      players = event.data.players;
+      const r = $("#rk");
+      if (r) r.innerHTML = rankHTML();
+    }
+  }
+};
+
 function home(){
   role=null;
-  const can=user?user.canEdit():true;
   app.innerHTML=`<div class="home">
-  <button class="btn" id="bT" ${can?"":"disabled"}>👩‍🏫 Sou o(a) professor(a)</button>
+  <button class="btn" id="bT">👩‍🏫 Sou o(a) professor(a)</button>
   <button class="btn alt" id="bS">🧒 Sou aluno(a)</button></div>
-  <div class="note">${can?"Professor(a): abra esta tela no projetor e compartilhe o link com a turma. Os alunos entram pelo celular ou computador e veem o mesmo sorteio ao vivo.":"Só quem criou o jogo pode ser professor(a). Entre como aluno(a)."}</div>
-  ${db?"":'<div class="note">⚠️ Sincronização indisponível neste momento. O sorteio só aparece para os alunos quando a conexão estiver ativa.</div>'}`;
-  $("#bT").onclick=()=>{role="T";paint()};$("#bS").onclick=()=>{role="S";askName()};
+  <div class="note">Professor(a): abra esta tela e compartilhe o link ou abra em outra aba para testar. Os alunos entram e veem o mesmo sorteio ao vivo.</div>`;
+  $("#bT").onclick=()=>{role="T";paint()};
+  $("#bS").onclick=()=>{role="S";askName()};
 }
+
 function stageHTML(){
   const id=view!=null?view:S.drawn[S.drawn.length-1];
   if(id==null)return `<div class="stage empty"><div class="em">🎃</div><h2>Aguardando o sorteio…</h2><p>Quando o professor sortear, a imagem e o texto aparecem aqui.</p></div>`;
   const [e,n,en,t]=I[id];
   return `<div class="stage"><div class="em">${e}</div><h2>${n}</h2><div class="en">${en}</div><p>${t}</p></div>`;
 }
+
 function chipsHTML(){
   const cur=view!=null?view:S.drawn[S.drawn.length-1];
   return `<div class="chips">${I.map((_,k)=>{const i=S.drawn[k];return i==null?`<span class="chip empty"><small>${k+1}</small></span>`:`<span class="chip ${i===cur?"cur":""}" data-i="${i}" title="${I[i][1]}">${I[i][0]}<small>${k+1}</small></span>`}).join("")}</div>`;
 }
+
 function bindChips(){document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{view=+c.dataset.i;role==="T"?teacher():paintStudent()})}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let players=[],me=null,myName="";
+
+let myName="";
 function rankHTML(){
   const L=players.filter(p=>p.round===S.round).sort((a,b)=>(a.bingoAt?0:1)-(b.bingoAt?0:1)||(a.bingoAt||0)-(b.bingoAt||0)||b.marks-a.marks||String(a.name).localeCompare(String(b.name)));
   if(!L.length)return `<div class="rank"><h3>🏆 Ranking</h3><div style="color:var(--mut)">Os alunos aparecem aqui quando entram no jogo.</div></div>`;
   return `<div class="rank"><h3>🏆 Ranking</h3><ol>${L.map((p,i)=>`<li><span>${["🥇","🥈","🥉"][i]||(i+1)+"º"}</span><b>${esc(p.name)}</b><em>${p.bingoAt?"🎉 BINGO!":(p.marks||0)+" marcados"}</em></li>`).join("")}</ol></div>`;
 }
-async function pushMe(){
-  if(!db||!myName)return;
-  try{
-    if(!me)me=String(user?await user.id():Math.random().toString(36).slice(2));
-    const st=store.get()||{};
-    await db.doc("players/"+me).set({name:myName,round:S.round,marks:marks.size,bingoAt:st.bingoAt||null});
-  }catch(e){}
+
+function pushMe(){
+  if(!myName)return;
+  const st=store.get()||{};
+  const playerObj={name:myName,round:S.round,marks:marks.size,bingoAt:st.bingoAt||null};
+  
+  // Atualiza lista local de players
+  const idx=players.findIndex(p=>p.name===myName);
+  if(idx>=0) players[idx]=playerObj; else players.push(playerObj);
+  
+  channel.postMessage({type: 'PLAYERS', players: players});
+  const r=$("#rk");if(r)r.innerHTML=rankHTML();
 }
+
 function askName(){
   let n="";try{n=localStorage.getItem("bingo-name")||""}catch(e){}
   app.innerHTML=`<div class="name"><label for="nm"><b>Qual é o seu nome?</b></label><input id="nm" maxlength="20" value="${esc(n)}" placeholder="Seu nome"><button class="btn" id="go">Entrar no jogo</button><button class="btn ghost" id="bk">← Voltar</button></div>`;
   $("#bk").onclick=home;
   $("#go").onclick=()=>{const v=$("#nm").value.trim().slice(0,20);if(!v){$("#nm").focus();return}myName=v;try{localStorage.setItem("bingo-name",v)}catch(e){}newCard(false);student();pushMe()};
 }
+
 function teacher(){
   const left=I.length-S.drawn.length;
   app.innerHTML=`<div class="bar"><span>Sorteados: <b>${S.drawn.length}</b> de ${I.length}</span><button class="btn ghost" id="bH">← Início</button></div>
@@ -151,26 +179,32 @@ function teacher(){
   $("#bN").onclick=()=>{if(!confirmNew){confirmNew=true;teacher();setTimeout(()=>{if(confirmNew){confirmNew=false;if(role==="T")teacher()}},4000)}else{confirmNew=false;save({drawn:[],round:S.round+1})}};
   bindChips();
 }
+
 function save(next){
   S=next;view=null;msg="";
-  if(ref)ref.set(S).catch(()=>{msg="Não foi possível sincronizar com os alunos.";teacher()});else msg="Sem sincronização: os alunos não verão o sorteio.";
+  channel.postMessage({type: 'STATE', state: S});
   teacher();
 }
+
 function draw(){
   const rest=I.map((_,i)=>i).filter(i=>!S.drawn.includes(i));if(!rest.length)return;
   save({drawn:S.drawn.concat(rest[Math.floor(Math.random()*rest.length)]),round:S.round});
 }
+
 function newCard(force){
   const st=store.get();
   if(!force&&st&&st.round===S.round&&st.card){card=st.card;marks=new Set(st.marks)}
   else{const c=rnd(I.map((_,i)=>i)).slice(0,24);c.splice(12,0,-1);card=c;marks=new Set()}
   store.set({round:S.round,card,marks:[...marks],bingoAt:(!force&&st&&st.round===S.round&&st.bingoAt)||null});
 }
+
 const LINES=(()=>{const L=[];for(let i=0;i<5;i++){L.push([0,1,2,3,4].map(j=>i*5+j));L.push([0,1,2,3,4].map(j=>j*5+i))}L.push([0,6,12,18,24],[4,8,12,16,20]);return L})();
 const hasBingo=()=>LINES.some(l=>l.every(p=>card[p]===-1||marks.has(card[p])));
+
 function cardHTML(){
   return `<div class="grid">${card.map((id,p)=>id===-1?`<div class="cell free"><span class="e">⭐</span><span class="n">Livre</span></div>`:`<button class="cell ${marks.has(id)?"on":""}" data-p="${p}"><span class="e">${I[id][0]}</span><span class="n">${I[id][1]}</span></button>`).join("")}</div>`;
 }
+
 function student(){
   app.innerHTML=`<div class="bar"><span>Sorteados: <b id="cnt">${S.drawn.length}</b></span><button class="btn ghost" id="bH">← Início</button></div>
   <div id="st">${stageHTML()}</div><div id="ch">${chipsHTML()}</div>
@@ -179,6 +213,7 @@ function student(){
   <div class="note">Leia o texto, ache a figura na sua cartela e toque para marcar. Complete uma linha, coluna ou diagonal para fazer BINGO!</div>`;
   $("#bH").onclick=home;bindChips();bindCells();showBingo();
 }
+
 function bindCells(){document.querySelectorAll(".cell[data-p]").forEach(b=>b.onclick=()=>{
   const id=card[+b.dataset.p];
   if(marks.has(id)){marks.delete(id);b.classList.remove("on")}
@@ -187,7 +222,9 @@ function bindCells(){document.querySelectorAll(".cell[data-p]").forEach(b=>b.onc
   let ba=(store.get()||{}).bingoAt||null;if(!hasBingo())ba=null;else if(!ba)ba=Date.now();
   store.set({round:S.round,card,marks:[...marks],bingoAt:ba});showBingo();pushMe();
 })}
+
 function showBingo(){const b=$("#bg");if(b)b.innerHTML=hasBingo()?`<div class="bingo">🎉 BINGO! 🎉</div>`:""}
+
 function paintStudent(){
   const st=store.get();
   if(!st||st.round!==S.round){newCard(true);pushMe()}
@@ -195,22 +232,10 @@ function paintStudent(){
   $("#st").innerHTML=stageHTML();$("#ch").innerHTML=chipsHTML();bindChips();
   $("#cd").innerHTML=cardHTML();bindCells();showBingo();$("#cnt").textContent=S.drawn.length;$("#rk").innerHTML=rankHTML();
 }
+
 function paint(){if(role==="T")teacher();else if(role==="S")paintStudent()}
-function onState(snap){
-  if(!snap.exists)return;
-  const d=snap.data(),old=S.drawn.length,oldR=S.round;
-  S={drawn:Array.isArray(d.drawn)?d.drawn:[],round:+d.round||0};
-  if(S.drawn.length!==old||S.round!==oldR){view=null;paint()}
-}
+
 home();
-(async()=>{
-  try{
-    user=await claude.use("user");
-    db=await claude.use("db");
-    if(db){ref=db.doc("game/state");ref.onSnapshot(onState,()=>{});db.collection("players").onSnapshot(s=>{players=s.docs.map(d=>d.data());const r=$("#rk");if(r)r.innerHTML=rankHTML()},()=>{})}
-  }catch(e){}
-  if(!role)home();
-})();
 </script>
 </body>
 </html>
