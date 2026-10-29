@@ -36,23 +36,14 @@ h1{font-family:Georgia,"Times New Roman",serif;text-align:center;margin:8px 0 4p
 .chip small{font-size:clamp(.4rem,1.6vw,.7rem);color:var(--mut);margin-top:3px}
 .chip.empty{opacity:.5;cursor:default}
 .chip.cur{border-color:var(--acc);border-width:2px}
-.rank{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:10px 14px;margin-top:14px}
-.rank h3{margin:0 0 6px;color:var(--acc2)}
-.rank ol{list-style:none;margin:0;padding:0}
-.rank li{display:flex;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
-.rank li b{flex:1}
-.rank li em{color:var(--mut);font-style:normal}
-.name{display:grid;gap:10px;margin-top:16px}
-.name input{font:inherit;font-size:1.2rem;padding:14px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:12px 0}
-.cell{aspect-ratio:1;background:var(--card);border:2px solid var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;color:var(--ink);padding:2px;cursor:pointer;position:relative;overflow:hidden}
+.cell{aspect-ratio:1;background:var(--card);border:2px solid var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;color:var(--ink);padding:2px;cursor:pointer;position:relative;overflow:hidden;transition: transform 0.1s;}
+.cell:active{transform:scale(0.95)}
 .cell .e{font-size:clamp(1.4rem,8vw,2.4rem);line-height:1}
 .cell .n{font-size:clamp(.5rem,2.3vw,.8rem);margin-top:2px;line-height:1.1;text-align:center}
 .cell.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .cell.on::after{content:"✔";position:absolute;top:1px;right:4px;font-size:.8rem}
 .cell.free{background:var(--acc2);color:#fff;border-color:var(--acc2);cursor:default;font-weight:700}
-.cell.shake{animation:sh .4s}
-@keyframes sh{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .bingo{background:var(--acc);color:#fff;text-align:center;font-size:2rem;font-weight:800;border-radius:18px;padding:14px;animation:pop .6s}
 .msg{text-align:center;color:var(--acc);font-weight:700;min-height:1.4em}
 </style>
@@ -93,41 +84,23 @@ const I=[
 ];
 const $=s=>document.querySelector(s);
 let S={drawn:[],round:0},role=null,view=null,msg="",card=[],marks=new Set(),confirmNew=false;
-let players=[];
 const app=$("#app");
 const rnd=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const store={get(){try{return JSON.parse(localStorage.getItem("bingo-card"))}catch(e){return null}},set(v){try{localStorage.setItem("bingo-card",JSON.stringify(v))}catch(e){}}};
-
-// Canal de comunicação em tempo real entre abas/janelas
-const channel = new BroadcastChannel('bingo_halloween_sync');
-
-channel.onmessage = (event) => {
-  if (event.data) {
-    if (event.data.type === 'STATE') {
-      S = event.data.state;
-      view = null;
-      paint();
-    } else if (event.data.type === 'PLAYERS') {
-      players = event.data.players;
-      const r = $("#rk");
-      if (r) r.innerHTML = rankHTML();
-    }
-  }
-};
 
 function home(){
   role=null;
   app.innerHTML=`<div class="home">
   <button class="btn" id="bT">👩‍🏫 Sou o(a) professor(a)</button>
   <button class="btn alt" id="bS">🧒 Sou aluno(a)</button></div>
-  <div class="note">Professor(a): abra esta tela e compartilhe o link ou abra em outra aba para testar. Os alunos entram e veem o mesmo sorteio ao vivo.</div>`;
-  $("#bT").onclick=()=>{role="T";paint()};
-  $("#bS").onclick=()=>{role="S";askName()};
+  <div class="note">Professor(a): Use seu celular ou computador para sortear e projetar.<br>Alunos: Abram no próprio celular para gerar e marcar as cartelas.</div>`;
+  $("#bT").onclick=()=>{role="T";teacher()};
+  $("#bS").onclick=()=>{role="S";newCard(false);student()};
 }
 
 function stageHTML(){
   const id=view!=null?view:S.drawn[S.drawn.length-1];
-  if(id==null)return `<div class="stage empty"><div class="em">🎃</div><h2>Aguardando o sorteio…</h2><p>Quando o professor sortear, a imagem e o texto aparecem aqui.</p></div>`;
+  if(id==null)return `<div class="stage empty"><div class="em">🎃</div><h2>Aguardando o sorteio…</h2><p>Quando você sortear, a imagem e o texto aparecem aqui.</p></div>`;
   const [e,n,en,t]=I[id];
   return `<div class="stage"><div class="em">${e}</div><h2>${n}</h2><div class="en">${en}</div><p>${t}</p></div>`;
 }
@@ -137,34 +110,11 @@ function chipsHTML(){
   return `<div class="chips">${I.map((_,k)=>{const i=S.drawn[k];return i==null?`<span class="chip empty"><small>${k+1}</small></span>`:`<span class="chip ${i===cur?"cur":""}" data-i="${i}" title="${I[i][1]}">${I[i][0]}<small>${k+1}</small></span>`}).join("")}</div>`;
 }
 
-function bindChips(){document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{view=+c.dataset.i;role==="T"?teacher():paintStudent()})}
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-
-let myName="";
-function rankHTML(){
-  const L=players.filter(p=>p.round===S.round).sort((a,b)=>(a.bingoAt?0:1)-(b.bingoAt?0:1)||(a.bingoAt||0)-(b.bingoAt||0)||b.marks-a.marks||String(a.name).localeCompare(String(b.name)));
-  if(!L.length)return `<div class="rank"><h3>🏆 Ranking</h3><div style="color:var(--mut)">Os alunos aparecem aqui quando entram no jogo.</div></div>`;
-  return `<div class="rank"><h3>🏆 Ranking</h3><ol>${L.map((p,i)=>`<li><span>${["🥇","🥈","🥉"][i]||(i+1)+"º"}</span><b>${esc(p.name)}</b><em>${p.bingoAt?"🎉 BINGO!":(p.marks||0)+" marcados"}</em></li>`).join("")}</ol></div>`;
-}
-
-function pushMe(){
-  if(!myName)return;
-  const st=store.get()||{};
-  const playerObj={name:myName,round:S.round,marks:marks.size,bingoAt:st.bingoAt||null};
-  
-  // Atualiza lista local de players
-  const idx=players.findIndex(p=>p.name===myName);
-  if(idx>=0) players[idx]=playerObj; else players.push(playerObj);
-  
-  channel.postMessage({type: 'PLAYERS', players: players});
-  const r=$("#rk");if(r)r.innerHTML=rankHTML();
-}
-
-function askName(){
-  let n="";try{n=localStorage.getItem("bingo-name")||""}catch(e){}
-  app.innerHTML=`<div class="name"><label for="nm"><b>Qual é o seu nome?</b></label><input id="nm" maxlength="20" value="${esc(n)}" placeholder="Seu nome"><button class="btn" id="go">Entrar no jogo</button><button class="btn ghost" id="bk">← Voltar</button></div>`;
-  $("#bk").onclick=home;
-  $("#go").onclick=()=>{const v=$("#nm").value.trim().slice(0,20);if(!v){$("#nm").focus();return}myName=v;try{localStorage.setItem("bingo-name",v)}catch(e){}newCard(false);student();pushMe()};
+function bindChips(){
+  document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    view=+c.dataset.i;
+    if(role==="T") teacher();
+  });
 }
 
 function teacher(){
@@ -173,29 +123,34 @@ function teacher(){
   <div>${stageHTML()}</div>
   <div class="row"><button class="btn" id="bD" ${left?"":"disabled"} style="font-size:1.4rem">🎲 Sortear</button>
   <button class="btn ghost" id="bN">${confirmNew?"Confirmar: apagar tudo":"Novo jogo"}</button></div>
-  <div class="msg">${msg}</div>${chipsHTML()}<div id="rk">${rankHTML()}</div>
-  <div class="note">Dica: peça para um aluno ler o texto em voz alta antes de sortear o próximo. Toque nos ícones para reler um item.</div>`;
-  $("#bD").onclick=draw;$("#bH").onclick=home;
-  $("#bN").onclick=()=>{if(!confirmNew){confirmNew=true;teacher();setTimeout(()=>{if(confirmNew){confirmNew=false;if(role==="T")teacher()}},4000)}else{confirmNew=false;save({drawn:[],round:S.round+1})}};
+  <div class="msg">${msg}</div>${chipsHTML()}
+  <div class="note">Dica: peça para um aluno ler o texto em voz alta antes de sortear o próximo. Toque nos ícones pequenos acima para reler um item.</div>`;
+  $("#bD").onclick=draw;
+  $("#bH").onclick=home;
+  $("#bN").onclick=()=>{
+    if(!confirmNew){
+      confirmNew=true;teacher();
+      setTimeout(()=>{if(confirmNew){confirmNew=false;if(role==="T")teacher()}},4000);
+    } else {
+      confirmNew=false;S={drawn:[],round:S.round+1};view=null;teacher();
+    }
+  };
   bindChips();
 }
 
-function save(next){
-  S=next;view=null;msg="";
-  channel.postMessage({type: 'STATE', state: S});
-  teacher();
-}
-
 function draw(){
-  const rest=I.map((_,i)=>i).filter(i=>!S.drawn.includes(i));if(!rest.length)return;
-  save({drawn:S.drawn.concat(rest[Math.floor(Math.random()*rest.length)]),round:S.round});
+  const rest=I.map((_,i)=>i).filter(i=>!S.drawn.includes(i));
+  if(!rest.length)return;
+  S.drawn.push(rest[Math.floor(Math.random()*rest.length)]);
+  view=null;
+  teacher();
 }
 
 function newCard(force){
   const st=store.get();
-  if(!force&&st&&st.round===S.round&&st.card){card=st.card;marks=new Set(st.marks)}
+  if(!force&&st&&st.card){card=st.card;marks=new Set(st.marks)}
   else{const c=rnd(I.map((_,i)=>i)).slice(0,24);c.splice(12,0,-1);card=c;marks=new Set()}
-  store.set({round:S.round,card,marks:[...marks],bingoAt:(!force&&st&&st.round===S.round&&st.bingoAt)||null});
+  store.set({card,marks:[...marks],bingoAt:(!force&&st&&st.bingoAt)||null});
 }
 
 const LINES=(()=>{const L=[];for(let i=0;i<5;i++){L.push([0,1,2,3,4].map(j=>i*5+j));L.push([0,1,2,3,4].map(j=>j*5+i))}L.push([0,6,12,18,24],[4,8,12,16,20]);return L})();
@@ -206,34 +161,50 @@ function cardHTML(){
 }
 
 function student(){
-  app.innerHTML=`<div class="bar"><span>Sorteados: <b id="cnt">${S.drawn.length}</b></span><button class="btn ghost" id="bH">← Início</button></div>
-  <div id="st">${stageHTML()}</div><div id="ch">${chipsHTML()}</div>
-  <div class="msg" id="ms"></div><div id="bg"></div><div id="cd">${cardHTML()}</div>
-  <div id="rk">${rankHTML()}</div>
-  <div class="note">Leia o texto, ache a figura na sua cartela e toque para marcar. Complete uma linha, coluna ou diagonal para fazer BINGO!</div>`;
-  $("#bH").onclick=home;bindChips();bindCells();showBingo();
+  app.innerHTML=`<div class="bar">
+    <button class="btn ghost" id="bH">← Início</button>
+    <button class="btn ghost" id="bN">Nova Cartela</button>
+  </div>
+  <div class="msg" id="ms"></div>
+  <div id="bg"></div>
+  <div id="cd">${cardHTML()}</div>
+  <div class="note">Acompanhe o sorteio do professor e toque na figura para marcar. Complete uma linha, coluna ou diagonal para fazer BINGO!</div>`;
+  
+  $("#bH").onclick=home;
+  $("#bN").onclick=()=>{
+    if(confirm("Gerar nova cartela? A atual será perdida.")){
+      newCard(true);
+      student();
+    }
+  };
+  bindCells();
+  showBingo();
 }
 
-function bindCells(){document.querySelectorAll(".cell[data-p]").forEach(b=>b.onclick=()=>{
-  const id=card[+b.dataset.p];
-  if(marks.has(id)){marks.delete(id);b.classList.remove("on")}
-  else if(S.drawn.includes(id)){marks.add(id);b.classList.add("on")}
-  else{b.classList.remove("shake");void b.offsetWidth;b.classList.add("shake");$("#ms").textContent="Ainda não foi sorteado! Espere o professor.";setTimeout(()=>{const m=$("#ms");if(m)m.textContent=""},1800);return}
-  let ba=(store.get()||{}).bingoAt||null;if(!hasBingo())ba=null;else if(!ba)ba=Date.now();
-  store.set({round:S.round,card,marks:[...marks],bingoAt:ba});showBingo();pushMe();
-})}
-
-function showBingo(){const b=$("#bg");if(b)b.innerHTML=hasBingo()?`<div class="bingo">🎉 BINGO! 🎉</div>`:""}
-
-function paintStudent(){
-  const st=store.get();
-  if(!st||st.round!==S.round){newCard(true);pushMe()}
-  if(!$("#st")||!st||st.round!==S.round){student();return}
-  $("#st").innerHTML=stageHTML();$("#ch").innerHTML=chipsHTML();bindChips();
-  $("#cd").innerHTML=cardHTML();bindCells();showBingo();$("#cnt").textContent=S.drawn.length;$("#rk").innerHTML=rankHTML();
+function bindCells(){
+  document.querySelectorAll(".cell[data-p]").forEach(b=>b.onclick=()=>{
+    const id=card[+b.dataset.p];
+    if(marks.has(id)){
+      marks.delete(id);
+      b.classList.remove("on");
+    } else {
+      marks.add(id);
+      b.classList.add("on");
+    }
+    
+    let ba=(store.get()||{}).bingoAt||null;
+    if(!hasBingo()) ba=null;
+    else if(!ba) ba=Date.now();
+    store.set({card,marks:[...marks],bingoAt:ba});
+    
+    showBingo();
+  });
 }
 
-function paint(){if(role==="T")teacher();else if(role==="S")paintStudent()}
+function showBingo(){
+  const b=$("#bg");
+  if(b) b.innerHTML=hasBingo()?`<div class="bingo">🎉 BINGO! 🎉</div>`:""
+}
 
 home();
 </script>
