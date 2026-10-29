@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bingo do Halloween</title>
+<style>
+:root{--bg:#fff4e0;--card:#ffffff;--ink:#2b1a3a;--mut:#6d5a7d;--acc:#e8590c;--acc2:#6f2dbd;--ok:#2f9e44;--line:#e6d3b5;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#150d1f;--card:#241635;--ink:#fbeedd;--mut:#b9a6cc;--acc:#ff8a3d;--acc2:#a572ff;--ok:#2f9e44;--line:#3d2858;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#150d1f;--card:#241635;--ink:#fbeedd;--mut:#b9a6cc;--acc:#ff8a3d;--acc2:#a572ff;--ok:#2f9e44;--line:#3d2858;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;min-height:100vh}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-family:Georgia,"Times New Roman",serif;text-align:center;margin:8px 0 4px;font-size:clamp(1.8rem,6vw,2.6rem);color:var(--acc)}
+.sub{text-align:center;color:var(--mut);margin:0 0 18px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:14px;padding:14px 20px;background:var(--acc);color:#fff;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.btn.alt{background:var(--acc2)}.btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:active{transform:translateY(2px)}
+.home{display:grid;gap:14px;margin-top:20px}
+.home .btn{font-size:1.3rem;padding:22px}
+.note{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:10px 14px;color:var(--mut);font-size:.9rem;margin-top:12px}
+.stage{background:var(--card);border:3px solid var(--acc);border-radius:22px;padding:18px;text-align:center;margin:10px 0}
+.stage .em{font-size:clamp(5rem,26vw,9rem);line-height:1.1;animation:pop .5s ease-out}
+.stage h2{margin:4px 0 0;font-size:clamp(1.6rem,6vw,2.4rem);color:var(--acc2)}
+.stage .en{color:var(--mut);font-style:italic;margin:2px 0 10px}
+.stage p{font-size:clamp(1.1rem,3.8vw,1.5rem);line-height:1.5;margin:0 auto;max-width:34em}
+.stage.empty .em{animation:none;opacity:.5}
+@keyframes pop{0%{transform:scale(.3) rotate(-15deg);opacity:0}70%{transform:scale(1.15) rotate(4deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--mut);font-size:.9rem}
+.chips{display:flex;flex-wrap:nowrap;gap:2px;margin:10px 0;width:100%}
+.chip{flex:1 1 0;min-width:0;aspect-ratio:1/1.35;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:clamp(.7rem,3vw,1.5rem);line-height:1;overflow:hidden}
+.chip small{font-size:clamp(.4rem,1.6vw,.7rem);color:var(--mut);margin-top:3px}
+.chip.empty{opacity:.5;cursor:default}
+.chip.cur{border-color:var(--acc);border-width:2px}
+.rank{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:10px 14px;margin-top:14px}
+.rank h3{margin:0 0 6px;color:var(--acc2)}
+.rank ol{list-style:none;margin:0;padding:0}
+.rank li{display:flex;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.rank li b{flex:1}
+.rank li em{color:var(--mut);font-style:normal}
+.name{display:grid;gap:10px;margin-top:16px}
+.name input{font:inherit;font-size:1.2rem;padding:14px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:12px 0}
+.cell{aspect-ratio:1;background:var(--card);border:2px solid var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;color:var(--ink);padding:2px;cursor:pointer;position:relative;overflow:hidden}
+.cell .e{font-size:clamp(1.4rem,8vw,2.4rem);line-height:1}
+.cell .n{font-size:clamp(.5rem,2.3vw,.8rem);margin-top:2px;line-height:1.1;text-align:center}
+.cell.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.cell.on::after{content:"✔";position:absolute;top:1px;right:4px;font-size:.8rem}
+.cell.free{background:var(--acc2);color:#fff;border-color:var(--acc2);cursor:default;font-weight:700}
+.cell.shake{animation:sh .4s}
+@keyframes sh{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.bingo{background:var(--acc);color:#fff;text-align:center;font-size:2rem;font-weight:800;border-radius:18px;padding:14px;animation:pop .6s}
+.msg{text-align:center;color:var(--acc);font-weight:700;min-height:1.4em}
+</style>
+</head>
+<body>
+<main>
+<h1>🎃 Bingo do Halloween 🎃</h1>
+<p class="sub">Sorteie, leia, aprenda e marque!</p>
+<div id="app"></div>
+</main>
+<script>
+const I=[
+["🎃","Abóbora","Pumpkin","Na Irlanda, as pessoas esculpiam rostos em nabos para afastar espíritos. Ao chegar aos Estados Unidos, o povo passou a usar abóboras, que são maiores e mais fáceis de esculpir. É a famosa Jack-o’-lantern."],
+["👻","Fantasma","Ghost","Os celtas acreditavam que, na noite de 31 de outubro, os espíritos dos mortos visitavam o mundo dos vivos. Por isso o fantasma virou símbolo da festa."],
+["🦇","Morcego","Bat","O morcego é o único mamífero que voa de verdade. Ele enxerga o mundo com o som: emite sons agudos e escuta o eco para saber onde estão os obstáculos. Isso se chama ecolocalização."],
+["🕷️","Aranha","Spider","A aranha não é um inseto! Ela tem 8 patas, enquanto os insetos têm 6. Suas teias são feitas de seda, um fio muito resistente."],
+["🧙","Bruxa","Witch","A bruxa é uma figura do folclore europeu. O chapéu pontudo, a vassoura e o caldeirão ficaram famosos em histórias e contos de fadas. No Brasil, 31 de outubro também é chamado de Dia das Bruxas."],
+["🐈‍⬛","Gato preto","Black cat","Na Idade Média, muita gente achava que gatos pretos davam azar. Era só superstição! Hoje sabemos que eles são animais carinhosos, e muitos ainda esperam por um lar."],
+["🧛","Vampiro","Vampire","Lendas de vampiros vêm do Leste Europeu. O personagem ficou muito famoso com o livro Drácula, escrito por Bram Stoker em 1897."],
+["🧟","Zumbi","Zombie","A palavra zumbi vem do folclore do Haiti e de tradições africanas. Hoje, filmes e jogos transformaram o zumbi em um monstro que anda devagar e quer perseguir as pessoas."],
+["💀","Esqueleto","Skeleton","Um adulto tem 206 ossos! O esqueleto sustenta o corpo, protege órgãos como o coração e o cérebro e ajuda a gente a se mexer."],
+["🍬","Doces","Candy","Na tradição americana, as crianças batem nas portas e dizem “Trick or treat!”, que significa “Gostosuras ou travessuras!”. Os vizinhos dão doces para elas."],
+["🕯️","Vela","Candle","Antigamente, as pessoas acendiam velas e fogueiras para iluminar a noite e proteger a casa de maus espíritos. É daí que vem a luz dentro das abóboras."],
+["🏚️","Casa assombrada","Haunted house","Uma casa assombrada é um lugar de histórias de arrepiar. No Halloween, escolas e parques montam casas assombradas de brincadeira, com sustos e decoração."],
+["🌕","Lua cheia","Full moon","A Lua cheia acontece quando vemos todo o lado iluminado dela, a cada cerca de 29 dias. Nas lendas, ela é a hora em que o lobisomem aparece."],
+["🐺","Lobisomem","Werewolf","O lobisomem é uma criatura de lenda: uma pessoa que vira lobo na Lua cheia. No folclore brasileiro, diz a história que é o sétimo filho homem de uma família."],
+["🧹","Vassoura","Broom","A vassoura é o transporte mágico das bruxas nas histórias. Na vida real, ela serve para varrer, e já foi feita de galhos amarrados e palha."],
+["🍎","Maçã","Apple","Uma brincadeira típica é pegar maçãs boiando na água usando só a boca, sem as mãos. Em antigas festas de outono, a maçã também era símbolo de sorte e de colheita."],
+["🌽","Colheita","Harvest","O Halloween nasceu de uma festa celta chamada Samhain, que marcava o fim da colheita e a chegada do inverno, há mais de 2000 anos."],
+["🦉","Coruja","Owl","A coruja caça à noite e consegue girar a cabeça até cerca de 270 graus. Seus olhos enormes e seus ouvidos ajudam a encontrar a presa no escuro."],
+["🕸️","Teia de aranha","Cobweb","As aranhas usam a teia para caçar e para se proteger. Alguns tipos de seda são tão fortes que cientistas estudam como imitá-los em materiais."],
+["🧪","Poção","Potion","Nas histórias, as bruxas fazem poções misteriosas em caldeirões. Na vida real, os cientistas fazem misturas em laboratório, de forma segura, para descobrir como as coisas funcionam."],
+["🪦","Cemitério","Graveyard","O cemitério é onde homenageamos pessoas que já se foram. No Brasil, temos o Dia de Finados em 2 de novembro, quando as famílias visitam e lembram seus entes queridos."],
+["🎭","Fantasia","Costume","Os celtas usavam máscaras e peles de animais para confundir os espíritos. Hoje, as pessoas se fantasiam de monstros, personagens e heróis para se divertir."],
+["🍂","Outono","Autumn","No hemisfério norte, 31 de outubro cai no outono: as folhas mudam de cor e caem, e os dias ficam mais curtos. Aqui no Brasil, estamos na primavera nessa data!"],
+["🌪️","Saci","Saci","O Saci-Pererê é um personagem do folclore brasileiro: um menino de uma perna só, com gorro vermelho, que adora fazer travessuras. Em 31 de outubro também comemoramos o Dia do Saci."],
+["🌙","Noite","Night","O Halloween acontece à noite, quando a escuridão faz tudo parecer mais misterioso. A palavra vem de All Hallows’ Eve, que quer dizer “véspera de Todos os Santos”."]
+];
+const $=s=>document.querySelector(s);
+let S={drawn:[],round:0},role=null,view=null,db=null,user=null,ref=null,msg="",card=[],marks=new Set(),confirmNew=false;
+const app=$("#app");
+const rnd=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const store={get(){try{return JSON.parse(localStorage.getItem("bingo-card"))}catch(e){return null}},set(v){try{localStorage.setItem("bingo-card",JSON.stringify(v))}catch(e){}}};
+
+function home(){
+  role=null;
+  const can=user?user.canEdit():true;
+  app.innerHTML=`<div class="home">
+  <button class="btn" id="bT" ${can?"":"disabled"}>👩‍🏫 Sou o(a) professor(a)</button>
+  <button class="btn alt" id="bS">🧒 Sou aluno(a)</button></div>
+  <div class="note">${can?"Professor(a): abra esta tela no projetor e compartilhe o link com a turma. Os alunos entram pelo celular ou computador e veem o mesmo sorteio ao vivo.":"Só quem criou o jogo pode ser professor(a). Entre como aluno(a)."}</div>
+  ${db?"":'<div class="note">⚠️ Sincronização indisponível neste momento. O sorteio só aparece para os alunos quando a conexão estiver ativa.</div>'}`;
+  $("#bT").onclick=()=>{role="T";paint()};$("#bS").onclick=()=>{role="S";askName()};
+}
+function stageHTML(){
+  const id=view!=null?view:S.drawn[S.drawn.length-1];
+  if(id==null)return `<div class="stage empty"><div class="em">🎃</div><h2>Aguardando o sorteio…</h2><p>Quando o professor sortear, a imagem e o texto aparecem aqui.</p></div>`;
+  const [e,n,en,t]=I[id];
+  return `<div class="stage"><div class="em">${e}</div><h2>${n}</h2><div class="en">${en}</div><p>${t}</p></div>`;
+}
+function chipsHTML(){
+  const cur=view!=null?view:S.drawn[S.drawn.length-1];
+  return `<div class="chips">${I.map((_,k)=>{const i=S.drawn[k];return i==null?`<span class="chip empty"><small>${k+1}</small></span>`:`<span class="chip ${i===cur?"cur":""}" data-i="${i}" title="${I[i][1]}">${I[i][0]}<small>${k+1}</small></span>`}).join("")}</div>`;
+}
+function bindChips(){document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{view=+c.dataset.i;role==="T"?teacher():paintStudent()})}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let players=[],me=null,myName="";
+function rankHTML(){
+  const L=players.filter(p=>p.round===S.round).sort((a,b)=>(a.bingoAt?0:1)-(b.bingoAt?0:1)||(a.bingoAt||0)-(b.bingoAt||0)||b.marks-a.marks||String(a.name).localeCompare(String(b.name)));
+  if(!L.length)return `<div class="rank"><h3>🏆 Ranking</h3><div style="color:var(--mut)">Os alunos aparecem aqui quando entram no jogo.</div></div>`;
+  return `<div class="rank"><h3>🏆 Ranking</h3><ol>${L.map((p,i)=>`<li><span>${["🥇","🥈","🥉"][i]||(i+1)+"º"}</span><b>${esc(p.name)}</b><em>${p.bingoAt?"🎉 BINGO!":(p.marks||0)+" marcados"}</em></li>`).join("")}</ol></div>`;
+}
+async function pushMe(){
+  if(!db||!myName)return;
+  try{
+    if(!me)me=String(user?await user.id():Math.random().toString(36).slice(2));
+    const st=store.get()||{};
+    await db.doc("players/"+me).set({name:myName,round:S.round,marks:marks.size,bingoAt:st.bingoAt||null});
+  }catch(e){}
+}
+function askName(){
+  let n="";try{n=localStorage.getItem("bingo-name")||""}catch(e){}
+  app.innerHTML=`<div class="name"><label for="nm"><b>Qual é o seu nome?</b></label><input id="nm" maxlength="20" value="${esc(n)}" placeholder="Seu nome"><button class="btn" id="go">Entrar no jogo</button><button class="btn ghost" id="bk">← Voltar</button></div>`;
+  $("#bk").onclick=home;
+  $("#go").onclick=()=>{const v=$("#nm").value.trim().slice(0,20);if(!v){$("#nm").focus();return}myName=v;try{localStorage.setItem("bingo-name",v)}catch(e){}newCard(false);student();pushMe()};
+}
+function teacher(){
+  const left=I.length-S.drawn.length;
+  app.innerHTML=`<div class="bar"><span>Sorteados: <b>${S.drawn.length}</b> de ${I.length}</span><button class="btn ghost" id="bH">← Início</button></div>
+  <div>${stageHTML()}</div>
+  <div class="row"><button class="btn" id="bD" ${left?"":"disabled"} style="font-size:1.4rem">🎲 Sortear</button>
+  <button class="btn ghost" id="bN">${confirmNew?"Confirmar: apagar tudo":"Novo jogo"}</button></div>
+  <div class="msg">${msg}</div>${chipsHTML()}<div id="rk">${rankHTML()}</div>
+  <div class="note">Dica: peça para um aluno ler o texto em voz alta antes de sortear o próximo. Toque nos ícones para reler um item.</div>`;
+  $("#bD").onclick=draw;$("#bH").onclick=home;
+  $("#bN").onclick=()=>{if(!confirmNew){confirmNew=true;teacher();setTimeout(()=>{if(confirmNew){confirmNew=false;if(role==="T")teacher()}},4000)}else{confirmNew=false;save({drawn:[],round:S.round+1})}};
+  bindChips();
+}
+function save(next){
+  S=next;view=null;msg="";
+  if(ref)ref.set(S).catch(()=>{msg="Não foi possível sincronizar com os alunos.";teacher()});else msg="Sem sincronização: os alunos não verão o sorteio.";
+  teacher();
+}
+function draw(){
+  const rest=I.map((_,i)=>i).filter(i=>!S.drawn.includes(i));if(!rest.length)return;
+  save({drawn:S.drawn.concat(rest[Math.floor(Math.random()*rest.length)]),round:S.round});
+}
+function newCard(force){
+  const st=store.get();
+  if(!force&&st&&st.round===S.round&&st.card){card=st.card;marks=new Set(st.marks)}
+  else{const c=rnd(I.map((_,i)=>i)).slice(0,24);c.splice(12,0,-1);card=c;marks=new Set()}
+  store.set({round:S.round,card,marks:[...marks],bingoAt:(!force&&st&&st.round===S.round&&st.bingoAt)||null});
+}
+const LINES=(()=>{const L=[];for(let i=0;i<5;i++){L.push([0,1,2,3,4].map(j=>i*5+j));L.push([0,1,2,3,4].map(j=>j*5+i))}L.push([0,6,12,18,24],[4,8,12,16,20]);return L})();
+const hasBingo=()=>LINES.some(l=>l.every(p=>card[p]===-1||marks.has(card[p])));
+function cardHTML(){
+  return `<div class="grid">${card.map((id,p)=>id===-1?`<div class="cell free"><span class="e">⭐</span><span class="n">Livre</span></div>`:`<button class="cell ${marks.has(id)?"on":""}" data-p="${p}"><span class="e">${I[id][0]}</span><span class="n">${I[id][1]}</span></button>`).join("")}</div>`;
+}
+function student(){
+  app.innerHTML=`<div class="bar"><span>Sorteados: <b id="cnt">${S.drawn.length}</b></span><button class="btn ghost" id="bH">← Início</button></div>
+  <div id="st">${stageHTML()}</div><div id="ch">${chipsHTML()}</div>
+  <div class="msg" id="ms"></div><div id="bg"></div><div id="cd">${cardHTML()}</div>
+  <div id="rk">${rankHTML()}</div>
+  <div class="note">Leia o texto, ache a figura na sua cartela e toque para marcar. Complete uma linha, coluna ou diagonal para fazer BINGO!</div>`;
+  $("#bH").onclick=home;bindChips();bindCells();showBingo();
+}
+function bindCells(){document.querySelectorAll(".cell[data-p]").forEach(b=>b.onclick=()=>{
+  const id=card[+b.dataset.p];
+  if(marks.has(id)){marks.delete(id);b.classList.remove("on")}
+  else if(S.drawn.includes(id)){marks.add(id);b.classList.add("on")}
+  else{b.classList.remove("shake");void b.offsetWidth;b.classList.add("shake");$("#ms").textContent="Ainda não foi sorteado! Espere o professor.";setTimeout(()=>{const m=$("#ms");if(m)m.textContent=""},1800);return}
+  let ba=(store.get()||{}).bingoAt||null;if(!hasBingo())ba=null;else if(!ba)ba=Date.now();
+  store.set({round:S.round,card,marks:[...marks],bingoAt:ba});showBingo();pushMe();
+})}
+function showBingo(){const b=$("#bg");if(b)b.innerHTML=hasBingo()?`<div class="bingo">🎉 BINGO! 🎉</div>`:""}
+function paintStudent(){
+  const st=store.get();
+  if(!st||st.round!==S.round){newCard(true);pushMe()}
+  if(!$("#st")||!st||st.round!==S.round){student();return}
+  $("#st").innerHTML=stageHTML();$("#ch").innerHTML=chipsHTML();bindChips();
+  $("#cd").innerHTML=cardHTML();bindCells();showBingo();$("#cnt").textContent=S.drawn.length;$("#rk").innerHTML=rankHTML();
+}
+function paint(){if(role==="T")teacher();else if(role==="S")paintStudent()}
+function onState(snap){
+  if(!snap.exists)return;
+  const d=snap.data(),old=S.drawn.length,oldR=S.round;
+  S={drawn:Array.isArray(d.drawn)?d.drawn:[],round:+d.round||0};
+  if(S.drawn.length!==old||S.round!==oldR){view=null;paint()}
+}
+home();
+(async()=>{
+  try{
+    user=await claude.use("user");
+    db=await claude.use("db");
+    if(db){ref=db.doc("game/state");ref.onSnapshot(onState,()=>{});db.collection("players").onSnapshot(s=>{players=s.docs.map(d=>d.data());const r=$("#rk");if(r)r.innerHTML=rankHTML()},()=>{})}
+  }catch(e){}
+  if(!role)home();
+})();
+</script>
+</body>
+</html>
